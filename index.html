@@ -401,10 +401,21 @@ let D=JSON.parse(JSON.stringify(DEFAULTS));
 let screen="home", wizStep=1, preview=null, checkVal="", subSearch="", catFilter="All", ledgerTab="history";
 let chat=[], lisaBusy=false, tips=null, tipsBusy=false;
 
+const store={
+  async get(k){
+    try{if(window.storage){const r=await window.storage.get(k);if(r&&r.value)return r.value;}}catch(e){}
+    try{return localStorage.getItem(k);}catch(e){}
+    return null;
+  },
+  async set(k,v){
+    try{if(window.storage){await window.storage.set(k,v);return;}}catch(e){}
+    try{localStorage.setItem(k,v);}catch(e){}
+  }
+};
 async function load(){
   try{
-    const r=await window.storage.get("clearsplit-v6");
-    if(r&&r.value){D=Object.assign(JSON.parse(JSON.stringify(DEFAULTS)),JSON.parse(r.value));}
+    const v=await store.get("clearsplit-v6");
+    if(v){D=Object.assign(JSON.parse(JSON.stringify(DEFAULTS)),JSON.parse(v));}
   }catch(e){}
   D.rules.forEach((r,i)=>{
     if(!r.icon)r.icon=RULEICONS[i%RULEICONS.length];
@@ -412,7 +423,7 @@ async function load(){
   });
   render();
 }
-async function save(){try{await window.storage.set("clearsplit-v6",JSON.stringify(D));}catch(e){}}
+async function save(){try{await store.set("clearsplit-v6",JSON.stringify(D));}catch(e){}}
 function toast(m){
   const t=document.getElementById("toast");
   t.innerHTML='<div class="toast">'+m+'</div>';
@@ -487,6 +498,8 @@ window.sendLisa=async(preset)=>{
     "\n\nUser's new message: "+text+"\n\nReply as Lisa:"}];
   const res=await askClaude(msgs);
   if(res.ok){chat.push({role:"lisa",text:res.text});}
+  else if(/failed to fetch|networkerror|load failed/i.test(res.text)){
+    chat.push({role:"lisa",err:true,text:"I can't reach my AI service from this page. Everything else in the app still works — open ClearSplit inside Claude to chat with me."});}
   else{chat.push({role:"lisa",err:true,text:"Connection hiccup ("+res.text+"). Try me again in a sec."});}
   lisaBusy=false;render();
 };
